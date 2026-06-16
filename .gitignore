@@ -1,0 +1,39 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# React / Node
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup generated artifacts
+backend/saved_files/backup_dataset1_before_smart_subset/
+backend/saved_files/backup_dataset2_before_smart_subset/
+
+# Generated binary/cache files
+*.pkl
+*.pickle
+*.joblib
+*.pt
+*.pth
+*.bin
+*.npy
+*.npz

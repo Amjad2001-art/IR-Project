@@ -1,0 +1,6 @@
+doc_id,text,bm25_candidate_score,word2vec_rerank_score,candidate_k,k1,b
+2559,What are the best ways to lose weight?,18.56081784633916,1.0000000000000002,100,1.5,0.75
+2712,What are the best way of loose the weight?,12.566059685704065,0.9998205010558612,100,1.5,0.75
+2711,What is the best method of losing weight?,14.414870884920717,0.9997352143711081,100,1.5,0.75
+1919,How could I gain weight in a healthy way?,9.006858739266265,0.9995791971389956,100,1.5,0.75
+2441,What is the best way to say 1?,7.568051955850601,0.9995653539325433,100,1.5,0.75

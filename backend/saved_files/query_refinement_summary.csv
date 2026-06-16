@@ -1,0 +1,7 @@
+Step,Output,Purpose
+Original Query,weigth loss,The raw query entered by the user.
+Preprocessing,weigth loss,Apply the same preprocessing pipeline used for documents.
+Spelling Correction,weight loss,Correct simple spelling mistakes in the query.
+Query Expansion,weight loss diet loss,Add related terms or synonyms to improve recall.
+History-based Suggestion,Suggested queries from user search history,Suggest previous similar queries that may help reformulate the search.
+Final Refined Query,weight loss diet loss,Use the improved query for retrieval.

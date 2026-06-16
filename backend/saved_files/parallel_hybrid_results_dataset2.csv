@@ -1,0 +1,6 @@
+doc_id,text,bm25_score_norm,word2vec_score_norm,final_hybrid_score,alpha,k1,b
+2559,What are the best ways to lose weight?,1.0,1.0,1.0,0.6,1.5,0.75
+2711,What is the best method of losing weight?,0.7766290798314058,0.999751518211205,0.8658780551833255,0.6,1.5,0.75
+2558,Why do I not lose weight when I throw up?,0.697576368369206,0.999248070052663,0.8182450490425888,0.6,1.5,0.75
+2712,What are the best way of loose the weight?,0.6770207966984887,0.9998315534762476,0.8061450994095922,0.6,1.5,0.75
+1693,How do I lose weight without doing any sport?,0.6311081688718544,0.9993263817646301,0.7783954540289647,0.6,1.5,0.75
