@@ -3,6 +3,8 @@ from functools import lru_cache
 import os
 
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from services.preprocessing_service import normalize_text, preprocess_stemming
 
@@ -326,6 +328,76 @@ def suggest_query_from_history(query, search_history=None, top_k=3):
     return suggestions[:top_k]
 
 
+def suggest_query_by_ir_similarity(
+    query,
+    search_history=None,
+    top_k=5,
+    dataset=None,
+):
+    # IR Query Similarity
+    # هنا نقارن الاستعلام الحالي مع استعلامات الداتا وسجل البحث بتمثيل متجهي.
+    clean_query = _clean_query(query)
+
+    if not clean_query:
+        return []
+
+    candidates = _unique(
+        list(search_history or [])
+        + list(_get_query_catalog(dataset))
+    )
+    candidates = [
+        item
+        for item in candidates
+        if _clean_query(item) != clean_query
+    ]
+
+    if not candidates:
+        return []
+
+    processed_query = preprocess_stemming(clean_query)
+    processed_candidates = [
+        preprocess_stemming(item)
+        for item in candidates
+    ]
+    valid_pairs = [
+        (original, processed)
+        for original, processed in zip(candidates, processed_candidates)
+        if processed
+    ]
+
+    if not processed_query or not valid_pairs:
+        return []
+
+    originals, processed_texts = zip(*valid_pairs)
+
+    try:
+        vectorizer = TfidfVectorizer()
+        matrix = vectorizer.fit_transform(
+            [processed_query, *processed_texts]
+        )
+        scores = cosine_similarity(
+            matrix[0:1],
+            matrix[1:],
+        ).flatten()
+    except ValueError:
+        return []
+
+    ranked = sorted(
+        zip(originals, scores),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+    return [
+        {
+            "suggested_query": original,
+            "similarity_score": round(float(score), 4),
+        }
+        for original, score in ranked[:top_k]
+        if score > 0
+    ]
+
+
 def get_prefix_completions(query, top_k=6, dataset=None):
     # Live Query Suggestion
     # هنا تظهر الاقتراحات مع كل حرف اعتماداً على بادئة الاستعلام.
@@ -448,6 +520,14 @@ def get_query_suggestions(
         clean_query,
         search_history=history,
         top_k=top_k,
+    ):
+        suggestions.append(item["suggested_query"])
+
+    for item in suggest_query_by_ir_similarity(
+        clean_query,
+        search_history=history,
+        top_k=top_k,
+        dataset=dataset,
     ):
         suggestions.append(item["suggested_query"])
 

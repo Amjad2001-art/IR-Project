@@ -3,14 +3,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-BACKEND = ROOT / "backend"
+BACKEND = ROOT
 sys.path.insert(0, str(BACKEND))
 
 from services.evaluation_service import evaluate_all_methods_with_topic_detection
 from services.model_loader_service import ModelLoaderService
 
 
-OUT_PATH = ROOT / "report_assets" / "topic_evaluation_results.json"
+OUT_PATH = ROOT.parent / "report_assets" / "topic_evaluation_results.json"
 
 METHODS = [
     "tfidf",

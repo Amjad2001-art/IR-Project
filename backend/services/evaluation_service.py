@@ -6,6 +6,7 @@ import pandas as pd
 
 from services.retrieval_service import run_search
 from services.topic_detection_service import detect_topic_from_results
+from services.query_refinement_service import refine_query
 
 
 
@@ -363,6 +364,12 @@ def evaluate_single_method(
         query_start = time.perf_counter()
         query_id = str(query_row["query_id"])
         query_text = str(query_row["text"])
+        # Query Refinement
+        # هنا نفعل تحسين الاستعلام في التقييم لأنه طلب أساسي وليس ميزة إضافية.
+        refined_query = refine_query(
+            query=query_text,
+            dataset=dataset,
+        )["refined_query"]
 
         relevant_doc_ids = filtered_qrels_df[
             filtered_qrels_df["query_id"] == query_id
@@ -373,7 +380,7 @@ def evaluate_single_method(
 
         retrieval_start = time.perf_counter()
         results = run_search(
-            query=query_text,
+            query=refined_query,
             dataset=dataset,
             method=method,
             loaded_data=loaded_data,
@@ -525,8 +532,12 @@ def evaluate_single_method_with_topic_cost(
         return None
 
     first_query = str(queries_df.iloc[0]["text"])
-    run_search(
+    first_refined_query = refine_query(
         query=first_query,
+        dataset=dataset,
+    )["refined_query"]
+    run_search(
+        query=first_refined_query,
         dataset=dataset,
         method=method,
         loaded_data=loaded_data,
@@ -539,6 +550,12 @@ def evaluate_single_method_with_topic_cost(
     for _, query_row in queries_df.iterrows():
         query_id = str(query_row["query_id"])
         query_text = str(query_row["text"])
+        # Query Refinement
+        # نفس الاستعلام المحسن يستخدم قبل وبعد كشف الموضوع لتبقى المقارنة عادلة.
+        refined_query = refine_query(
+            query=query_text,
+            dataset=dataset,
+        )["refined_query"]
         relevant_doc_ids = filtered_qrels_df[
             filtered_qrels_df["query_id"] == query_id
         ]["doc_id"].astype(str).tolist()
@@ -551,7 +568,7 @@ def evaluate_single_method_with_topic_cost(
         for _ in range(retrieval_repetitions):
             retrieval_start = time.perf_counter()
             candidate_results = run_search(
-                query=query_text,
+                query=refined_query,
                 dataset=dataset,
                 method=method,
                 loaded_data=loaded_data,
