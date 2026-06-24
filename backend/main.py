@@ -59,7 +59,7 @@ class SearchRequest(BaseModel):
     k1: float = 1.5
     b: float = 0.75
     alpha: float = 0.6
-    use_refinement: bool = False
+    use_refinement: bool = True
     use_topic_detection: bool = False
     history: list[str] = []
 
@@ -72,7 +72,7 @@ class EvaluateRequest(BaseModel):
     k1: float = 1.5
     b: float = 0.75
     alpha: float = 0.6
-    use_refinement: bool = False
+    use_refinement: bool = True
     history: list[str] = []
     relevant_doc_ids: list[str] = []
 
@@ -221,16 +221,13 @@ def search_endpoint(request: SearchRequest):
     # هنا ننفذ البحث ونرتب النتائج حسب الطريقة والمعاملات المختارة.
     request_start = time.perf_counter()
     final_query = request.query
-    refinement_info = None
+    refinement_info = refine_query(
+        query=request.query,
+        search_history=request.history,
+        dataset=request.dataset
+    )
+    final_query = refinement_info["refined_query"]
     topic_info = None
-
-    if request.use_refinement:
-        refinement_info = refine_query(
-            query=request.query,
-            search_history=request.history,
-            dataset=request.dataset
-        )
-        final_query = refinement_info["refined_query"]
 
     retrieval_top_k = request.top_k
 
@@ -318,16 +315,12 @@ def cluster_documents_endpoint(request: DocumentClusteringRequest):
 def evaluate_endpoint(request: EvaluateRequest):
     # Evaluation
     # هنا نقيم نتائج استعلام واحد عند توفر وثائق الصلة.
-    final_query = request.query
-    refinement_info = None
-
-    if request.use_refinement:
-        refinement_info = refine_query(
-            query=request.query,
-            search_history=request.history,
-            dataset=request.dataset
-        )
-        final_query = refinement_info["refined_query"]
+    refinement_info = refine_query(
+        query=request.query,
+        search_history=request.history,
+        dataset=request.dataset
+    )
+    final_query = refinement_info["refined_query"]
 
     results = run_search(
         query=final_query,

@@ -273,7 +273,7 @@ with st.sidebar:
     st.subheader("Query Processing")
     # Query Refinement
     # هنا تحسين الاستعلام ميزة أساسية وليست ضمن المزايا الإضافية.
-    use_refinement = st.checkbox("Use Query Refinement")
+    st.caption("Query Refinement is always applied before search.")
 
     st.divider()
     st.subheader("Additional Feature")
@@ -397,7 +397,7 @@ if search_clicked:
         "k1": float(k1),
         "b": float(b),
         "alpha": float(alpha),
-        "use_refinement": use_refinement,
+        "use_refinement": True,
         "use_topic_detection": use_topic_detection,
         "history": st.session_state.search_history,
     }
