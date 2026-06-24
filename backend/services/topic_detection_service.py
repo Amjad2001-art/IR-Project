@@ -32,6 +32,8 @@ def _get_text_column(docs_df):
 
 
 def detect_topic_from_results(results, max_terms=8):
+    # Topic Detection
+    # هنا نحقق الميزة الإضافية عبر استخراج أهم كلمات الموضوع من النتائج الأولى.
     texts = [
         _safe_text(item.get("text", ""))
         for item in results
@@ -116,6 +118,8 @@ def detect_topic_for_query(
     b=0.75,
     alpha=0.6
 ):
+# Topic Modeling
+# هنا نطبق كشف الموضوع على نتائج استعلام محدد لعرض الموضوع للمستخدم.
     results = run_search(
         query=query,
         dataset=dataset,
@@ -143,12 +147,14 @@ def detect_topic_for_query(
 
 
 def load_documents_for_clustering(dataset, save_dir="saved_files", max_docs=1000):
+    # Document Clustering
+    # هنا نجهز عينة وثائق للتجميع الموضوعي عند الحاجة لعرض مجموعات موضوعية.
     if dataset == "dataset1":
         docs_file = "work_dataset1.csv"
     elif dataset == "dataset2":
         docs_file = "work_dataset2.csv"
     else:
-        raise ValueError("dataset must be dataset1 or dataset2")
+        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
 
     docs_path = os.path.join(save_dir, docs_file)
 
@@ -176,6 +182,8 @@ def cluster_documents(
     max_docs=1000,
     top_terms_per_cluster=8
 ):
+# Topic Modeling Charts Support
+# هنا ننتج عناقيد وموضوعات تساعد في شرح نتائج الموضوعات داخل التقرير.
     docs_df, text_column = load_documents_for_clustering(
         dataset=dataset,
         save_dir=save_dir,

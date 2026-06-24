@@ -1,4 +1,6 @@
 def rank_dataframe_by_score(results_df, score_column, top_k=10):
+    # Query Matching And Ranking
+    # هنا نرتب الوثائق تنازلياً حسب الدرجة النهائية لكل طريقة.
     ranked_results = results_df.sort_values(
         by=score_column,
         ascending=False
@@ -18,6 +20,8 @@ def rank_dataframe_by_score(results_df, score_column, top_k=10):
 
 
 def dataframe_to_response(results_df, score_column):
+    # Ranked Results
+    # هنا نحول النتائج المرتبة إلى شكل موحد ترسله خدمات البحث للواجهة.
     response = []
 
     for _, row in results_df.iterrows():

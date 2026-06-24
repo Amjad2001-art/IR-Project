@@ -9,6 +9,8 @@ stop_words = set(stopwords.words("english"))
 stemmer = PorterStemmer()
 
 
+# Data Pre-Processing
+# هنا نحقق طلب معالجة النصوص قبل الفهرسة والبحث.
 def normalize_text(text):
     text = str(text).lower()
     text = re.sub(r"http\S+|www\S+", " ", text)
@@ -17,6 +19,8 @@ def normalize_text(text):
     return text
 
 
+# Stemming
+# هنا نحذف كلمات التوقف ونطبق الجذر لتوحيد شكل الكلمات.
 def preprocess_stemming(text):
     text = normalize_text(text)
     words = text.split()
@@ -30,6 +34,8 @@ def preprocess_stemming(text):
     return " ".join(tokens)
 
 
+# Query Processing
+# هنا نعالج استعلام المستخدم بنفس منطق معالجة الوثائق.
 def process_query(query):
     processed_query = preprocess_stemming(query)
     query_tokens = processed_query.split()

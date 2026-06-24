@@ -8,3 +8,7 @@ spacy
 gensim
 rank-bm25
 python-multipart
+streamlit
+streamlit-keyup
+requests
+ir-datasets

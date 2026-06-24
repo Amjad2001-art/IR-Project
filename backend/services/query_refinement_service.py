@@ -1,252 +1,464 @@
-from difflib import get_close_matches
-from services.preprocessing_service import process_query, preprocess_stemming
+from difflib import SequenceMatcher, get_close_matches
+from functools import lru_cache
+import os
+
+import pandas as pd
+
+from services.preprocessing_service import normalize_text, preprocess_stemming
 
 
-spelling_corrections = {
-    "weigth": "weight",
+SPELLING_CORRECTIONS = {
+# Query Refinement
+# هنا نحقق تصحيح الأخطاء الشائعة في الاستعلام قبل البحث.
+    "algoritm": "algorithm",
+    "algorthm": "algorithm",
+    "artifical": "artificial",
+    "automibile": "automobile",
+    "begginer": "beginner",
+    "beginer": "beginner",
+    "climat": "climate",
+    "climite": "climate",
+    "codig": "coding",
+    "dabase": "database",
+    "databse": "database",
+    "develoment": "development",
+    "developement": "development",
+    "enviroment": "environment",
+    "environmnt": "environment",
+    "excercise": "exercise",
+    "excersise": "exercise",
+    "exersize": "exercise",
+    "fitnes": "fitness",
+    "helth": "health",
+    "healt": "health",
+    "infomation": "information",
+    "informaton": "information",
+    "inteligence": "intelligence",
+    "intilligence": "intelligence",
+    "lern": "learn",
+    "lerning": "learning",
+    "machin": "machine",
+    "medecine": "medicine",
+    "nutriton": "nutrition",
+    "optimisation": "optimization",
+    "progamming": "programming",
+    "programing": "programming",
+    "programmin": "programming",
+    "querry": "query",
+    "reccomendation": "recommendation",
+    "recomendation": "recommendation",
+    "retreival": "retrieval",
+    "retrival": "retrieval",
+    "serach": "search",
+    "sofware": "software",
+    "tecnology": "technology",
+    "technlogy": "technology",
+    "traning": "training",
     "wieght": "weight",
     "wiehgt": "weight",
     "wheight": "weight",
+    "weigth": "weight",
     "weigt": "weight",
-    "weig": "weight",
     "waight": "weight",
-
-    "loose": "lose",
-    "losingg": "losing",
-    "los": "lose",
-
-    "helth": "health",
-    "healt": "health",
-
-    "excersise": "exercise",
-    "excercise": "exercise",
-    "exersize": "exercise",
-
-    "programing": "programming",
-    "progamming": "programming",
-
-    "lern": "learn",
-    "lerning": "learning",
-
-    "tecnology": "technology",
-    "technlogy": "technology",
-
-    "enviroment": "environment",
-    "environmnt": "environment"
+    "weght": "weight",
+    "webiste": "website",
+    "wordvec": "word2vec",
+    "sothern": "southern",
+    "soutern": "southern",
+    "universty": "university",
+    "unversity": "university",
+    "methodis": "methodist",
+    "methodst": "methodist",
+    "justce": "justice",
+    "langauge": "language",
+    "languge": "language",
+    "goidelc": "goidelic",
+    "calclus": "calculus",
+    "calcullus": "calculus",
+    "cheif": "chief",
+    "securty": "security",
+    "histry": "history",
+    "religon": "religion",
+    "educaton": "education",
+    "stats": "states",
 }
 
 
-synonym_dictionary = {
-    "weight": ["loss", "diet", "fitness"],
-    "lose": ["weight", "loss", "diet"],
-    "health": ["medical", "fitness", "wellness"],
-    "exercise": ["workout", "fitness", "training"],
-    "programming": ["coding", "software", "development"],
-    "learn": ["study", "education", "training"],
+SYNONYM_DICTIONARY = {
+# Query Expansion
+# هنا نحقق توسيع الاستعلام بإضافة مرادفات مناسبة.
+    "ai": ["artificial intelligence", "machine learning"],
+    "algorithm": ["method", "procedure", "technique"],
+    "automobile": ["car", "vehicle"],
+    "beginner": ["basics", "introduction", "tutorial"],
     "car": ["automobile", "vehicle"],
     "climate": ["environment", "weather"],
+    "coding": ["programming", "software development"],
+    "database": ["data storage", "information system"],
+    "diet": ["nutrition", "healthy food"],
+    "education": ["learning", "study", "training"],
+    "environment": ["climate", "ecology"],
+    "exercise": ["workout", "fitness", "training"],
+    "fitness": ["exercise", "workout", "health"],
+    "food": ["meal", "diet", "nutrition"],
+    "health": ["medical", "fitness", "wellness"],
+    "information": ["data", "knowledge"],
+    "learn": ["study", "education", "training"],
+    "learning": ["education", "study", "training"],
+    "lose": ["weight loss", "diet", "fitness"],
+    "machine": ["computer", "automated system"],
+    "medical": ["health", "medicine", "clinical"],
     "movie": ["film", "cinema"],
-    "food": ["meal", "diet", "nutrition"]
+    "programming": ["coding", "software", "development"],
+    "query": ["search request", "search terms"],
+    "recommendation": ["suggestion", "related results"],
+    "retrieval": ["search", "information retrieval"],
+    "search": ["retrieval", "lookup", "find"],
+    "software": ["programming", "application", "development"],
+    "technology": ["computing", "innovation", "software"],
+    "training": ["learning", "education", "practice"],
+    "weight": ["weight loss", "diet", "fitness"],
+    "workout": ["exercise", "fitness", "training"],
+    "university": ["college", "higher education", "academic institution"],
+    "justice": ["judge", "court", "law"],
+    "language": ["linguistics", "dialect", "speech"],
+    "history": ["historical", "past", "chronology"],
+    "religion": ["faith", "theology", "belief"],
+    "music": ["song", "artist", "musician"],
+    "county": ["region", "district", "area"],
 }
 
 
-user_search_history = [
-    "weight loss diet",
+QUERY_CATALOG = [
+# Query Suggestion
+# هنا نوفر اقتراحات جاهزة تساعد المستخدم أثناء صياغة الاستعلام.
+    "artificial intelligence applications",
+    "best diet for weight loss",
     "best exercise for fitness",
+    "climate change and environment",
+    "coding tutorials for beginners",
+    "database design fundamentals",
+    "exercise and healthy lifestyle",
     "healthy food and nutrition",
-    "learn programming basics"
+    "how to learn programming",
+    "how to lose weight safely",
+    "information retrieval algorithms",
+    "learn machine learning basics",
+    "learn python programming",
+    "medical health information",
+    "natural language processing",
+    "programming and software development",
+    "query expansion techniques",
+    "query refinement and suggestion",
+    "search engine optimization",
+    "software development practices",
+    "technology and artificial intelligence",
+    "tf idf information retrieval",
+    "word2vec semantic similarity",
 ]
 
 
-def correct_query_spelling(query):
-    query_info = process_query(query)
-    tokens = query_info["tokens"]
+DEFAULT_SEARCH_HISTORY = [
+    "weight loss diet",
+    "best exercise for fitness",
+    "healthy food and nutrition",
+    "learn programming basics",
+]
 
+
+CANONICAL_WORDS = sorted(
+    set(SPELLING_CORRECTIONS.values())
+    | set(SYNONYM_DICTIONARY.keys())
+    | {
+        word
+        for phrase in QUERY_CATALOG
+        for word in normalize_text(phrase).split()
+    }
+)
+
+DATASET_QUERY_FILES = {
+    "dataset1": "queries_dataset1.csv",
+    "dataset2": "queries_dataset2.csv",
+}
+
+
+@lru_cache(maxsize=2)
+def _load_dataset_query_resources(dataset):
+    file_name = DATASET_QUERY_FILES.get(dataset)
+    if not file_name:
+        return (), ()
+
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(backend_dir, "saved_files", file_name)
+    if not os.path.exists(path):
+        return (), ()
+
+    queries_df = pd.read_csv(path, usecols=["text"])
+    catalog = []
+    words = set()
+
+    for value in queries_df["text"].dropna().astype(str):
+        clean_query = normalize_text(value)
+        if not clean_query:
+            continue
+        catalog.append(clean_query)
+        words.update(
+            token
+            for token in clean_query.split()
+            if len(token) >= 3
+        )
+
+    return tuple(_unique(catalog)), tuple(sorted(words))
+
+
+@lru_cache(maxsize=3)
+def _get_query_catalog(dataset=None):
+    dataset_catalog, _ = _load_dataset_query_resources(dataset)
+    return tuple(dataset_catalog) + tuple(QUERY_CATALOG)
+
+
+@lru_cache(maxsize=3)
+def _get_canonical_words(dataset=None):
+    _, dataset_words = _load_dataset_query_resources(dataset)
+    return tuple(sorted(set(CANONICAL_WORDS).union(dataset_words)))
+
+
+def _clean_query(query):
+    return normalize_text(query)
+
+
+def _unique(items):
+    result = []
+
+    for item in items:
+        clean_item = " ".join(str(item).split())
+        if clean_item and clean_item not in result:
+            result.append(clean_item)
+
+    return result
+
+
+def _replace_last_token(query, replacement):
+    clean_query = _clean_query(query)
+    tokens = clean_query.split()
+
+    if not tokens:
+        return replacement
+
+    tokens[-1] = replacement
+    return " ".join(tokens)
+
+
+def correct_query_spelling(query, dataset=None):
+    # Spelling Correction
+    # هنا نصحح كلمات الاستعلام اعتماداً على القاموس وكلمات الداتا سيت.
+    tokens = _clean_query(query).split()
     corrected_tokens = []
-
-    known_words = list(spelling_corrections.keys()) + list(synonym_dictionary.keys())
+    canonical_words = _get_canonical_words(dataset)
+    canonical_word_set = set(canonical_words)
 
     for token in tokens:
-        if token in spelling_corrections:
-            corrected_tokens.append(spelling_corrections[token])
-        else:
-            close_match = get_close_matches(
-                token,
-                known_words,
-                n=1,
-                cutoff=0.78
-            )
+        if token in SPELLING_CORRECTIONS:
+            corrected_tokens.append(SPELLING_CORRECTIONS[token])
+            continue
 
-            if close_match and close_match[0] in spelling_corrections:
-                corrected_tokens.append(spelling_corrections[close_match[0]])
-            elif close_match and close_match[0] in synonym_dictionary:
-                corrected_tokens.append(close_match[0])
-            else:
-                corrected_tokens.append(token)
+        if token in canonical_word_set or len(token) < 3:
+            corrected_tokens.append(token)
+            continue
+
+        close_match = get_close_matches(
+            token,
+            canonical_words,
+            n=1,
+            cutoff=0.84,
+        )
+        corrected_tokens.append(close_match[0] if close_match else token)
 
     return " ".join(corrected_tokens)
 
 
-def expand_query_with_synonyms(query, max_synonyms_per_term=2):
-    query_info = process_query(query)
-    tokens = query_info["tokens"]
+def expand_query_with_synonyms(
+    query,
+    max_synonyms_per_term=2,
+    dataset=None,
+):
+# Query Expansion
+# هنا نضيف مرادفات للكلمات المصححة حتى يصبح الاستعلام أغنى.
+    corrected_query = correct_query_spelling(query, dataset=dataset)
+    expanded_terms = corrected_query.split()
 
-    expanded_tokens = []
+    for token in corrected_query.split():
+        for synonym in SYNONYM_DICTIONARY.get(token, [])[:max_synonyms_per_term]:
+            for synonym_token in synonym.split():
+                if synonym_token not in expanded_terms:
+                    expanded_terms.append(synonym_token)
 
-    for token in tokens:
-        expanded_tokens.append(token)
-
-        if token in synonym_dictionary:
-            related_terms = synonym_dictionary[token][:max_synonyms_per_term]
-
-            for related_term in related_terms:
-                if related_term not in expanded_tokens:
-                    expanded_tokens.append(related_term)
-
-    return " ".join(expanded_tokens)
+    return " ".join(expanded_terms)
 
 
 def suggest_query_from_history(query, search_history=None, top_k=3):
-    if search_history is None or len(search_history) == 0:
-        search_history = user_search_history
-
-    processed_query = preprocess_stemming(query)
-    query_tokens = set(processed_query.split())
-
+    # Query Formulation Assistance
+    # هنا نستفيد من سجل البحث فقط لاقتراح استعلامات مشابهة وليس لتغيير ترتيب النتائج.
+    history = search_history or DEFAULT_SEARCH_HISTORY
+    clean_query = _clean_query(query)
+    query_tokens = set(preprocess_stemming(clean_query).split())
     suggestions = []
 
-    for old_query in search_history:
-        processed_old_query = preprocess_stemming(old_query)
-        old_query_tokens = set(processed_old_query.split())
+    for index, old_query in enumerate(history):
+        clean_old_query = _clean_query(old_query)
+        old_tokens = set(preprocess_stemming(clean_old_query).split())
+        overlap = len(query_tokens.intersection(old_tokens))
+        text_similarity = SequenceMatcher(None, clean_query, clean_old_query).ratio()
+        prefix_bonus = 1.0 if clean_old_query.startswith(clean_query) else 0.0
+        recency_bonus = 1 / (index + 1)
+        score = overlap * 2 + text_similarity + prefix_bonus + recency_bonus
 
-        common_terms = query_tokens.intersection(old_query_tokens)
-        score = len(common_terms)
-
-        if score > 0:
+        if overlap > 0 or prefix_bonus > 0 or text_similarity >= 0.45:
             suggestions.append({
                 "suggested_query": old_query,
-                "similarity_score": score
+                "similarity_score": round(score, 4),
             })
 
-    suggestions = sorted(
-        suggestions,
+    suggestions.sort(
         key=lambda item: item["similarity_score"],
-        reverse=True
+        reverse=True,
     )
-
     return suggestions[:top_k]
 
 
-def refine_query(query, use_spelling=True, use_expansion=True, use_history=True, search_history=None):
-    original_query = query
-    processed_original = process_query(original_query)["processed_query"]
+def get_prefix_completions(query, top_k=6, dataset=None):
+    # Live Query Suggestion
+    # هنا تظهر الاقتراحات مع كل حرف اعتماداً على بادئة الاستعلام.
+    clean_query = _clean_query(query)
+    query_catalog = list(_get_query_catalog(dataset))
 
-    if use_spelling:
-        corrected_query = correct_query_spelling(original_query)
-    else:
-        corrected_query = processed_original
+    if not clean_query:
+        return query_catalog[:top_k]
 
-    if use_expansion:
-        expanded_query = expand_query_with_synonyms(corrected_query)
-    else:
-        expanded_query = corrected_query
+    tokens = clean_query.split()
+    partial = tokens[-1]
+    prefix = " ".join(tokens[:-1])
+    candidates = []
 
-    if use_history:
-        suggestions = suggest_query_from_history(
+    for phrase in query_catalog:
+        clean_phrase = _clean_query(phrase)
+        if clean_phrase.startswith(clean_query):
+            candidates.append(clean_phrase)
+        elif partial and any(word.startswith(partial) for word in clean_phrase.split()):
+            candidates.append(clean_phrase)
+
+    for word in _get_canonical_words(dataset):
+        if word.startswith(partial) and word != partial:
+            candidates.append(f"{prefix} {word}".strip())
+
+    return _unique(candidates)[:top_k]
+
+
+def refine_query(
+    query,
+    use_spelling=True,
+    use_expansion=True,
+    use_history=True,
+    search_history=None,
+    dataset=None,
+):
+# Query Refinement
+# هنا نجمع التصحيح والتوسيع والاقتراحات لإنتاج استعلام محسّن.
+    original_query = str(query)
+    processed_original = preprocess_stemming(original_query)
+    corrected_query = (
+        correct_query_spelling(original_query, dataset=dataset)
+        if use_spelling
+        else _clean_query(original_query)
+    )
+    expanded_query = (
+        expand_query_with_synonyms(corrected_query, dataset=dataset)
+        if use_expansion
+        else corrected_query
+    )
+    history_suggestions = (
+        suggest_query_from_history(
             expanded_query,
             search_history=search_history,
-            top_k=3
+            top_k=3,
         )
-    else:
-        suggestions = []
+        if use_history
+        else []
+    )
 
-    final_tokens = expanded_query.split()
+    final_terms = expanded_query.split()
 
-    if len(suggestions) > 0:
-        best_history_query = suggestions[0]["suggested_query"]
-        history_tokens = preprocess_stemming(best_history_query).split()
-
-        for token in history_tokens:
-            if token not in final_tokens:
-                final_tokens.append(token)
-
-    refined_query = " ".join(final_tokens)
+    if history_suggestions:
+        history_terms = _clean_query(
+            history_suggestions[0]["suggested_query"]
+        ).split()
+        for term in history_terms:
+            if term not in final_terms:
+                final_terms.append(term)
 
     return {
         "original_query": original_query,
         "processed_original_query": processed_original,
         "corrected_query": corrected_query,
         "expanded_query": expanded_query,
-        "history_suggestions": suggestions,
-        "refined_query": refined_query
+        "history_suggestions": history_suggestions,
+        "refined_query": " ".join(final_terms),
     }
-def get_query_suggestions(query, search_history=None, top_k=6):
-    if search_history is None:
-        search_history = []
 
-    query = str(query).strip()
 
-    # إذا مربع البحث فارغ نعرض سجل البحث فقط
-    if query == "":
-        recent_history = list(dict.fromkeys(search_history))
-        return recent_history[:top_k]
+def get_query_suggestions(
+    query,
+    search_history=None,
+    top_k=8,
+    dataset=None,
+):
+# Query Suggestion
+# هنا نعيد اقتراحات الواجهة المباشرة قبل تنفيذ البحث.
+    history = search_history or []
+    clean_query = _clean_query(query)
+    query_catalog = list(_get_query_catalog(dataset))
 
-    query_info = process_query(query)
-    tokens = query_info["tokens"]
+    if not clean_query:
+        return _unique(history + query_catalog)[:top_k]
 
     suggestions = []
-
-    corrected_query = correct_query_spelling(query)
-
-    # اقتراح التصحيح الإملائي فقط إذا اختلف عن query الحالية
-    if corrected_query and corrected_query != query_info["processed_query"]:
-        suggestions.append(corrected_query)
-
-    expanded_query = expand_query_with_synonyms(corrected_query)
-
-    # اقتراح التوسيع بالمرادفات
-    if expanded_query and expanded_query not in suggestions:
-        suggestions.append(expanded_query)
-
-    # استخدام سجل البحث للتثقيل فقط، وليس إظهار جمل history كما هي
-    history_suggestions = suggest_query_from_history(
-        expanded_query,
-        search_history=search_history,
-        top_k=top_k
+    suggestions.extend(
+        get_prefix_completions(
+            clean_query,
+            top_k=top_k,
+            dataset=dataset,
+        )
     )
 
-    for item in history_suggestions:
-        suggested_query = item["suggested_query"]
-        history_tokens = preprocess_stemming(suggested_query).split()
+    corrected_query = correct_query_spelling(
+        clean_query,
+        dataset=dataset,
+    )
+    if corrected_query != clean_query:
+        suggestions.insert(0, corrected_query)
 
-        weighted_tokens = expanded_query.split()
+    expanded_query = expand_query_with_synonyms(
+        corrected_query,
+        dataset=dataset,
+    )
+    if expanded_query != corrected_query:
+        suggestions.append(expanded_query)
 
-        for token in history_tokens:
-            if token not in weighted_tokens:
-                weighted_tokens.append(token)
+    for item in suggest_query_from_history(
+        clean_query,
+        search_history=history,
+        top_k=top_k,
+    ):
+        suggestions.append(item["suggested_query"])
 
-        weighted_query = " ".join(weighted_tokens)
+    last_token = clean_query.split()[-1]
+    if last_token in SPELLING_CORRECTIONS:
+        suggestions.insert(
+            0,
+            _replace_last_token(
+                clean_query,
+                SPELLING_CORRECTIONS[last_token],
+            ),
+        )
 
-        if weighted_query not in suggestions:
-            suggestions.append(weighted_query)
-
-    # اقتراحات إضافية مبنية على المرادفات فقط
-    for token in tokens:
-        if token in synonym_dictionary:
-            related_terms = synonym_dictionary[token]
-
-            for related_term in related_terms:
-                candidate = corrected_query + " " + related_term
-
-                if candidate not in suggestions:
-                    suggestions.append(candidate)
-
-    clean_suggestions = []
-
-    for suggestion in suggestions:
-        suggestion = " ".join(str(suggestion).split())
-
-        if suggestion and suggestion not in clean_suggestions:
-            clean_suggestions.append(suggestion)
-
-    return clean_suggestions[:top_k]
+    return _unique(suggestions)[:top_k]

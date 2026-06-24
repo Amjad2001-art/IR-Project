@@ -1,6 +1,0 @@
-Step,Query Output,Same Method as Documents,Explanation
-Preprocessing,Processed query and query tokens,Yes,"The query is processed using the same preprocessing function used for documents: normalization, tokenization, stop word removal, and stemming."
-TF-IDF Representation,"(1, 17463)",Yes,"The query is transformed using the same TF-IDF vectorizer fitted on the documents. We use transform only, not fit."
-Word2Vec Representation,"(100,)",Yes,"The query is represented by averaging the Word2Vec vectors of its tokens, using the same method applied to documents."
-BM25 Representation,"['best', 'way', 'lose', 'weight']",Yes,The query is converted into tokens using the same preprocessing pipeline used to build the BM25 tokenized corpus.
-Inverted Index Lookup,Processed query terms,Yes,The processed query terms are searched inside the inverted index built from the processed document texts.

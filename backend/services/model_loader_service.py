@@ -6,6 +6,8 @@ from gensim.models import Word2Vec
 
 
 class ModelLoaderService:
+    # Cached Artifacts Loader
+    # هنا نحمل ملفات الكاش الجاهزة بدل إعادة بناء الداتا والنماذج عند كل تشغيل.
     def __init__(self, save_dir="saved_files"):
         self.save_dir = save_dir
         self.data = {}
@@ -28,6 +30,8 @@ class ModelLoaderService:
         return Word2Vec.load(path)
 
     def load_all(self):
+        # Service Oriented Architecture
+        # هنا نجمع كل ملفات الداتا والنماذج لتستخدمها خدمات البحث بشكل منفصل.
         self.data["work1_df"] = self.load_csv("work_dataset1.csv")
         self.data["work2_df"] = self.load_csv("work_dataset2.csv")
 

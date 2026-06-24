@@ -2,6 +2,8 @@ from services.preprocessing_service import preprocess_stemming
 from services.ranking_service import rank_dataframe_by_score, dataframe_to_response
 
 
+# Inverted Index
+# هنا نحقق البحث عبر الفهرس المعكوس وجمع تكرارات كلمات الاستعلام داخل الوثائق.
 def match_and_rank_inverted_index(query, docs_df, inverted_index, top_k=10):
     processed_query = preprocess_stemming(query)
     query_tokens = processed_query.split()

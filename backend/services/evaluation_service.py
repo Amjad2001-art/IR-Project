@@ -1,14 +1,17 @@
 import math
 import os
+import statistics
+import time
 import pandas as pd
 
 from services.retrieval_service import run_search
-from services.personalization_service import personalize_results
 from services.topic_detection_service import detect_topic_from_results
 
 
 
 def evaluate_ranked_results(results, relevant_doc_ids, top_k=10):
+    # Evaluation Metrics
+    # هنا نحسب مقاييس جودة الاسترجاع المطلوبة رسمياً.
     relevant_doc_ids = set(str(doc_id) for doc_id in relevant_doc_ids)
 
     if len(relevant_doc_ids) == 0:
@@ -88,6 +91,8 @@ def recall_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
 
 
 def average_precision_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
+    # MAP
+    # هنا نحسب الدقة المتوسطة لكل استعلام لاستخدامها لاحقاً في المتوسط العام.
     score = 0
     relevant_found = 0
 
@@ -117,6 +122,8 @@ def dcg_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
 
 
 def ndcg_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
+    # nDCG
+    # هنا نقيس جودة ترتيب النتائج وليس فقط عدد الوثائق الصحيحة.
     dcg = dcg_at_k(
         retrieved_doc_ids=retrieved_doc_ids,
         relevant_doc_ids=relevant_doc_ids,
@@ -141,6 +148,8 @@ def ndcg_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
 
 
 def load_evaluation_files(dataset, save_dir="saved_files"):
+    # Test Queries And Qrels
+    # هنا نقرأ استعلامات الاختبار وأحكام الصلة الرسمية الخاصة بكل داتا سيت.
     if dataset == "dataset1":
         queries_file = "queries_dataset1.csv"
         qrels_file = "qrels_dataset1.csv"
@@ -148,7 +157,7 @@ def load_evaluation_files(dataset, save_dir="saved_files"):
         queries_file = "queries_dataset2.csv"
         qrels_file = "qrels_dataset2.csv"
     else:
-        raise ValueError("dataset must be dataset1 or dataset2")
+        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
 
     queries_path = os.path.join(save_dir, queries_file)
     qrels_path = os.path.join(save_dir, qrels_file)
@@ -182,7 +191,7 @@ def load_indexed_documents(dataset, save_dir="saved_files"):
     elif dataset == "dataset2":
         docs_file = "work_dataset2.csv"
     else:
-        raise ValueError("dataset must be dataset1 or dataset2")
+        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
 
     docs_path = os.path.join(save_dir, docs_file)
 
@@ -224,11 +233,21 @@ def get_valid_queries(queries_df, filtered_qrels_df, max_queries):
 
 
 def summarize_metric_difference(before_result, after_result):
+    # Before And After Comparison
+    # هنا نحسب فرق المقاييس قبل تطبيق الميزة الإضافية وبعدها.
     return {
         "MAP_difference": after_result["MAP"] - before_result["MAP"],
         "Recall_difference": after_result["Recall"] - before_result["Recall"],
         "Precision@10_difference": after_result["Precision@10"] - before_result["Precision@10"],
-        "nDCG_difference": after_result["nDCG"] - before_result["nDCG"]
+        "nDCG_difference": after_result["nDCG"] - before_result["nDCG"],
+        "average_retrieval_time_difference_seconds": (
+            after_result["average_retrieval_time_seconds"]
+            - before_result["average_retrieval_time_seconds"]
+        ),
+        "average_total_time_difference_seconds": (
+            after_result["average_total_time_seconds"]
+            - before_result["average_total_time_seconds"]
+        )
     }
 
 
@@ -245,6 +264,8 @@ def tokenize_text(text):
 
 
 def topic_rerank_results(results, topic_boost_factor=0.08):
+    # Topic-Based Re-Ranking
+    # هنا نعيد ترتيب النتائج بإضافة تعزيز بسيط للوثائق المطابقة لكلمات الموضوع.
     topic_info = detect_topic_from_results(
         results=results,
         max_terms=8
@@ -318,15 +339,17 @@ def evaluate_single_method(
     k1=1.5,
     b=0.75,
     alpha=0.6,
-    use_personalization=False,
-    search_history=None,
     use_topic_detection=False,
     candidate_pool_size=None
 ):
+# Single Method Evaluation
+# هنا نقيم طريقة استرجاع واحدة على استعلامات الاختبار الرسمية.
     average_precisions = []
     recalls = []
     precisions_at_10 = []
     ndcgs = []
+    retrieval_times = []
+    total_times = []
 
     evaluated_queries_count = 0
 
@@ -337,6 +360,7 @@ def evaluate_single_method(
         candidate_pool_size = top_k
 
     for _, query_row in queries_df.iterrows():
+        query_start = time.perf_counter()
         query_id = str(query_row["query_id"])
         query_text = str(query_row["text"])
 
@@ -347,9 +371,7 @@ def evaluate_single_method(
         if len(relevant_doc_ids) == 0:
             continue
 
-        # First-stage retrieval:
-        # Retrieve a larger candidate pool when personalization is enabled.
-        # Then personalization re-ranks these candidates.
+        retrieval_start = time.perf_counter()
         results = run_search(
             query=query_text,
             dataset=dataset,
@@ -360,13 +382,7 @@ def evaluate_single_method(
             b=b,
             alpha=alpha
         )
-
-        if use_personalization:
-            personalization_output = personalize_results(
-                results=results,
-                search_history=search_history
-            )
-            results = personalization_output["results"]
+        retrieval_times.append(time.perf_counter() - retrieval_start)
 
         if use_topic_detection:
             topic_output = topic_rerank_results(
@@ -413,6 +429,7 @@ def evaluate_single_method(
         recalls.append(recall)
         precisions_at_10.append(precision)
         ndcgs.append(ndcg)
+        total_times.append(time.perf_counter() - query_start)
 
         evaluated_queries_count += 1
 
@@ -420,7 +437,6 @@ def evaluate_single_method(
         return {
             "dataset": dataset,
             "method": method,
-            "use_personalization": use_personalization,
             "use_topic_detection": use_topic_detection,
             "evaluated_queries_count": 0,
             "candidate_pool_size": candidate_pool_size,
@@ -428,13 +444,15 @@ def evaluate_single_method(
             "MAP": 0,
             "Recall": 0,
             "Precision@10": 0,
-            "nDCG": 0
+            "nDCG": 0,
+            "average_retrieval_time_seconds": 0,
+            "average_total_time_seconds": 0,
+            "total_execution_time_seconds": 0
         }
 
     result = {
         "dataset": dataset,
         "method": method,
-        "use_personalization": use_personalization,
         "use_topic_detection": use_topic_detection,
         "evaluated_queries_count": evaluated_queries_count,
         "candidate_pool_size": candidate_pool_size,
@@ -442,13 +460,195 @@ def evaluate_single_method(
         "MAP": sum(average_precisions) / evaluated_queries_count,
         "Recall": sum(recalls) / evaluated_queries_count,
         "Precision@10": sum(precisions_at_10) / evaluated_queries_count,
-        "nDCG": sum(ndcgs) / evaluated_queries_count
+        "nDCG": sum(ndcgs) / evaluated_queries_count,
+        "average_retrieval_time_seconds": sum(retrieval_times) / evaluated_queries_count,
+        "average_total_time_seconds": sum(total_times) / evaluated_queries_count,
+        "total_execution_time_seconds": sum(total_times)
     }
 
-    if use_personalization:
-        result["personalization_history_used"] = search_history
-
     return result
+
+
+def _metrics_for_results(results, relevant_doc_ids, top_k):
+    retrieved_doc_ids = [
+        str(item["doc_id"])
+        for item in results[:top_k]
+    ]
+    relevant_doc_ids = set(str(doc_id) for doc_id in relevant_doc_ids)
+
+    return {
+        "Average_Precision": average_precision_at_k(
+            retrieved_doc_ids=retrieved_doc_ids,
+            relevant_doc_ids=relevant_doc_ids,
+            k=top_k
+        ),
+        "Recall": recall_at_k(
+            retrieved_doc_ids=retrieved_doc_ids,
+            relevant_doc_ids=relevant_doc_ids,
+            k=top_k
+        ),
+        "Precision@10": precision_at_k(
+            retrieved_doc_ids=retrieved_doc_ids,
+            relevant_doc_ids=relevant_doc_ids,
+            k=10
+        ),
+        "nDCG": ndcg_at_k(
+            retrieved_doc_ids=retrieved_doc_ids,
+            relevant_doc_ids=relevant_doc_ids,
+            k=top_k
+        )
+    }
+
+
+def evaluate_single_method_with_topic_cost(
+    dataset,
+    method,
+    loaded_data,
+    queries_df,
+    filtered_qrels_df,
+    top_k=10,
+    k1=1.5,
+    b=0.75,
+    alpha=0.6,
+    candidate_pool_size=50,
+    retrieval_repetitions=3,
+    feature_repetitions=10
+):
+# Feature Cost
+# هنا نقيس أثر كشف الموضوع على الجودة والزمن باستخدام نفس مجموعة المرشحين.
+    before_metrics = []
+    after_metrics = []
+    retrieval_times = []
+    feature_costs = []
+
+    if len(queries_df) == 0:
+        return None
+
+    first_query = str(queries_df.iloc[0]["text"])
+    run_search(
+        query=first_query,
+        dataset=dataset,
+        method=method,
+        loaded_data=loaded_data,
+        top_k=candidate_pool_size,
+        k1=k1,
+        b=b,
+        alpha=alpha
+    )
+
+    for _, query_row in queries_df.iterrows():
+        query_id = str(query_row["query_id"])
+        query_text = str(query_row["text"])
+        relevant_doc_ids = filtered_qrels_df[
+            filtered_qrels_df["query_id"] == query_id
+        ]["doc_id"].astype(str).tolist()
+
+        if not relevant_doc_ids:
+            continue
+
+        retrieval_samples = []
+        candidate_results = None
+        for _ in range(retrieval_repetitions):
+            retrieval_start = time.perf_counter()
+            candidate_results = run_search(
+                query=query_text,
+                dataset=dataset,
+                method=method,
+                loaded_data=loaded_data,
+                top_k=candidate_pool_size,
+                k1=k1,
+                b=b,
+                alpha=alpha
+            )
+            retrieval_samples.append(
+                time.perf_counter() - retrieval_start
+            )
+
+        before_metrics.append(
+            _metrics_for_results(
+                results=candidate_results,
+                relevant_doc_ids=relevant_doc_ids,
+                top_k=top_k
+            )
+        )
+
+        topic_rerank_results(
+            results=candidate_results,
+            topic_boost_factor=0.08
+        )
+
+        feature_samples = []
+        topic_results = candidate_results
+        for _ in range(feature_repetitions):
+            feature_start = time.perf_counter()
+            topic_output = topic_rerank_results(
+                results=candidate_results,
+                topic_boost_factor=0.08
+            )
+            feature_samples.append(
+                time.perf_counter() - feature_start
+            )
+            topic_results = topic_output["results"]
+
+        after_metrics.append(
+            _metrics_for_results(
+                results=topic_results,
+                relevant_doc_ids=relevant_doc_ids,
+                top_k=top_k
+            )
+        )
+        retrieval_times.append(statistics.median(retrieval_samples))
+        feature_costs.append(statistics.median(feature_samples))
+
+    count = len(before_metrics)
+    if count == 0:
+        return None
+
+    average_retrieval = sum(retrieval_times) / count
+    average_feature_cost = sum(feature_costs) / count
+    estimated_total = average_retrieval + average_feature_cost
+    overhead_percent = (
+        average_feature_cost / average_retrieval * 100
+        if average_retrieval > 0
+        else 0
+    )
+
+    def summarize(metrics, use_topic_detection):
+        return {
+            "dataset": dataset,
+            "method": method,
+            "use_topic_detection": use_topic_detection,
+            "evaluated_queries_count": count,
+            "candidate_pool_size": candidate_pool_size,
+            "final_top_k": top_k,
+            "MAP": sum(item["Average_Precision"] for item in metrics) / count,
+            "Recall": sum(item["Recall"] for item in metrics) / count,
+            "Precision@10": sum(item["Precision@10"] for item in metrics) / count,
+            "nDCG": sum(item["nDCG"] for item in metrics) / count,
+            "average_warmed_retrieval_time_seconds": average_retrieval,
+            "average_topic_feature_cost_seconds": (
+                average_feature_cost if use_topic_detection else 0
+            ),
+            "average_estimated_total_time_seconds": (
+                estimated_total if use_topic_detection else average_retrieval
+            ),
+            "feature_overhead_percent": (
+                overhead_percent if use_topic_detection else 0
+            )
+        }
+
+    return {
+        "before": summarize(before_metrics, False),
+        "after": summarize(after_metrics, True),
+        "timing": {
+            "average_warmed_retrieval_time_seconds": average_retrieval,
+            "average_topic_feature_cost_seconds": average_feature_cost,
+            "average_estimated_total_time_seconds": estimated_total,
+            "feature_overhead_percent": overhead_percent,
+            "retrieval_repetitions_per_query": retrieval_repetitions,
+            "feature_repetitions_per_query": feature_repetitions
+        }
+    }
 
 
 def evaluate_all_methods(
@@ -462,6 +662,8 @@ def evaluate_all_methods(
     alpha=0.6,
     save_dir="saved_files"
 ):
+# Baseline Evaluation
+# هنا نقيم كل طرق الاسترجاع قبل تشغيل أي ميزة إضافية.
     queries_df, qrels_df = load_evaluation_files(
         dataset=dataset,
         save_dir=save_dir
@@ -496,8 +698,6 @@ def evaluate_all_methods(
             k1=k1,
             b=b,
             alpha=alpha,
-            use_personalization=False,
-            search_history=[],
             use_topic_detection=False,
             candidate_pool_size=top_k
         )
@@ -516,125 +716,6 @@ def evaluate_all_methods(
     }
 
 
-def evaluate_all_methods_with_personalization(
-    dataset,
-    methods,
-    loaded_data,
-    top_k=10,
-    max_queries=10,
-    k1=1.5,
-    b=0.75,
-    alpha=0.6,
-    search_history=None,
-    save_dir="saved_files"
-):
-    if search_history is None:
-        search_history = []
-
-    queries_df, qrels_df = load_evaluation_files(
-        dataset=dataset,
-        save_dir=save_dir
-    )
-
-    available_doc_ids = get_available_doc_ids(
-        dataset=dataset,
-        save_dir=save_dir
-    )
-
-    filtered_qrels_df = filter_qrels_to_available_docs(
-        qrels_df=qrels_df,
-        available_doc_ids=available_doc_ids
-    )
-
-    valid_queries_df = get_valid_queries(
-        queries_df=queries_df,
-        filtered_qrels_df=filtered_qrels_df,
-        max_queries=max_queries
-    )
-
-    before_additional_feature = []
-    after_personalization = []
-    metric_differences = []
-
-    # Baseline evaluates the normal final Top K.
-    baseline_candidate_pool_size = top_k
-
-    # Personalization evaluates a practical two-stage retrieval pipeline:
-    # retrieve a larger candidate pool, personalize/re-rank, then evaluate final Top K.
-    personalization_candidate_pool_size = max(top_k * 5, 50)
-
-    available_docs_count = len(available_doc_ids)
-
-    if personalization_candidate_pool_size > available_docs_count:
-        personalization_candidate_pool_size = available_docs_count
-
-    for method in methods:
-        baseline_result = evaluate_single_method(
-            dataset=dataset,
-            method=method,
-            loaded_data=loaded_data,
-            queries_df=valid_queries_df,
-            filtered_qrels_df=filtered_qrels_df,
-            top_k=top_k,
-            k1=k1,
-            b=b,
-            alpha=alpha,
-            use_personalization=False,
-            search_history=[],
-            use_topic_detection=False,
-            candidate_pool_size=baseline_candidate_pool_size
-        )
-
-        personalized_result = evaluate_single_method(
-            dataset=dataset,
-            method=method,
-            loaded_data=loaded_data,
-            queries_df=valid_queries_df,
-            filtered_qrels_df=filtered_qrels_df,
-            top_k=top_k,
-            k1=k1,
-            b=b,
-            alpha=alpha,
-            use_personalization=True,
-            search_history=search_history,
-            use_topic_detection=False,
-            candidate_pool_size=personalization_candidate_pool_size
-        )
-
-        baseline_result["available_documents_count"] = len(available_doc_ids)
-        baseline_result["available_qrels_count"] = len(filtered_qrels_df)
-
-        personalized_result["available_documents_count"] = len(available_doc_ids)
-        personalized_result["available_qrels_count"] = len(filtered_qrels_df)
-
-        difference = summarize_metric_difference(
-            before_result=baseline_result,
-            after_result=personalized_result
-        )
-
-        difference["dataset"] = dataset
-        difference["method"] = method
-
-        before_additional_feature.append(baseline_result)
-        after_personalization.append(personalized_result)
-        metric_differences.append(difference)
-
-    return {
-        "dataset": dataset,
-        "top_k": top_k,
-        "max_queries": max_queries,
-        "evaluation_mode": "before_and_after_personalization",
-        "evaluation_strategy": "Baseline uses Top K directly. Personalization retrieves a larger candidate pool, re-ranks it using user history, then evaluates the final Top K.",
-        "baseline_candidate_pool_size": baseline_candidate_pool_size,
-        "personalization_candidate_pool_size": personalization_candidate_pool_size,
-        "personalization_history_used": search_history,
-        "before_additional_feature": before_additional_feature,
-        "after_personalization": after_personalization,
-        "metric_differences": metric_differences
-    }
-
-
-
 def evaluate_all_methods_with_topic_detection(
     dataset,
     methods,
@@ -646,6 +727,8 @@ def evaluate_all_methods_with_topic_detection(
     alpha=0.6,
     save_dir="saved_files"
 ):
+# Topic Detection Evaluation
+# هنا نقيم كل الطرق قبل وبعد ميزة كشف الموضوع للمقارنة العادلة.
     queries_df, qrels_df = load_evaluation_files(
         dataset=dataset,
         save_dir=save_dir
@@ -671,14 +754,14 @@ def evaluate_all_methods_with_topic_detection(
     after_topic_detection = []
     metric_differences = []
 
-    baseline_candidate_pool_size = top_k
     topic_candidate_pool_size = max(top_k * 5, 50)
+    baseline_candidate_pool_size = topic_candidate_pool_size
 
     if topic_candidate_pool_size > len(available_doc_ids):
         topic_candidate_pool_size = len(available_doc_ids)
 
     for method in methods:
-        baseline_result = evaluate_single_method(
+        paired_result = evaluate_single_method_with_topic_cost(
             dataset=dataset,
             method=method,
             loaded_data=loaded_data,
@@ -688,27 +771,16 @@ def evaluate_all_methods_with_topic_detection(
             k1=k1,
             b=b,
             alpha=alpha,
-            use_personalization=False,
-            search_history=[],
-            use_topic_detection=False,
-            candidate_pool_size=baseline_candidate_pool_size
+            candidate_pool_size=baseline_candidate_pool_size,
+            retrieval_repetitions=3,
+            feature_repetitions=10
         )
 
-        topic_result = evaluate_single_method(
-            dataset=dataset,
-            method=method,
-            loaded_data=loaded_data,
-            queries_df=valid_queries_df,
-            filtered_qrels_df=filtered_qrels_df,
-            top_k=top_k,
-            k1=k1,
-            b=b,
-            alpha=alpha,
-            use_personalization=False,
-            search_history=[],
-            use_topic_detection=True,
-            candidate_pool_size=topic_candidate_pool_size
-        )
+        if paired_result is None:
+            continue
+
+        baseline_result = paired_result["before"]
+        topic_result = paired_result["after"]
 
         baseline_result["available_documents_count"] = len(available_doc_ids)
         baseline_result["available_qrels_count"] = len(filtered_qrels_df)
@@ -716,13 +788,32 @@ def evaluate_all_methods_with_topic_detection(
         topic_result["available_documents_count"] = len(available_doc_ids)
         topic_result["available_qrels_count"] = len(filtered_qrels_df)
 
-        difference = summarize_metric_difference(
-            before_result=baseline_result,
-            after_result=topic_result
-        )
-
-        difference["dataset"] = dataset
-        difference["method"] = method
+        timing = paired_result["timing"]
+        difference = {
+            "dataset": dataset,
+            "method": method,
+            "MAP_difference": topic_result["MAP"] - baseline_result["MAP"],
+            "Recall_difference": (
+                topic_result["Recall"] - baseline_result["Recall"]
+            ),
+            "Precision@10_difference": (
+                topic_result["Precision@10"]
+                - baseline_result["Precision@10"]
+            ),
+            "nDCG_difference": (
+                topic_result["nDCG"] - baseline_result["nDCG"]
+            ),
+            "topic_feature_cost_seconds": (
+                timing["average_topic_feature_cost_seconds"]
+            ),
+            "topic_feature_cost_milliseconds": (
+                timing["average_topic_feature_cost_seconds"] * 1000
+            ),
+            "estimated_total_with_feature_seconds": (
+                timing["average_estimated_total_time_seconds"]
+            ),
+            "feature_overhead_percent": timing["feature_overhead_percent"]
+        }
 
         before_additional_feature.append(baseline_result)
         after_topic_detection.append(topic_result)
@@ -733,7 +824,10 @@ def evaluate_all_methods_with_topic_detection(
         "top_k": top_k,
         "max_queries": max_queries,
         "evaluation_mode": "before_and_after_topic_detection",
-        "evaluation_strategy": "Baseline uses Top K directly. Topic Detection retrieves a larger candidate pool, detects dominant topic terms using TF-IDF, re-ranks documents using topic-term matches, then evaluates the final Top K.",
+        "evaluation_strategy": "Each method is warmed first. Retrieval is measured three times per query and the median is used. Topic detection is then measured separately ten times on the same candidate results. Quality before and after uses the identical candidate pool.",
+        "timing_mode": "isolated_warmed_feature_cost",
+        "retrieval_repetitions_per_query": 3,
+        "feature_repetitions_per_query": 10,
         "baseline_candidate_pool_size": baseline_candidate_pool_size,
         "topic_candidate_pool_size": topic_candidate_pool_size,
         "before_additional_feature": before_additional_feature,

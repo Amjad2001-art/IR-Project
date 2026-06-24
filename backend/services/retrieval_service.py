@@ -7,6 +7,26 @@ from services.ranking_service import rank_dataframe_by_score, dataframe_to_respo
 from services.indexing_service import match_and_rank_inverted_index
 
 
+_bm25_cache = {}
+
+
+# BM25
+# هنا نستخدم مكتبة جاهزة ونخزن النموذج حسب المعاملات لتسريع البحث.
+def get_bm25_model(tokenized_corpus, k1=1.5, b=0.75):
+    cache_key = (id(tokenized_corpus), float(k1), float(b))
+
+    if cache_key not in _bm25_cache:
+        _bm25_cache[cache_key] = BM25Okapi(
+            tokenized_corpus,
+            k1=k1,
+            b=b
+        )
+
+    return _bm25_cache[cache_key]
+
+
+# Embedding Representation
+# هنا نحول الوثيقة أو الاستعلام إلى متجه دلالي متوسط من كلمات النموذج.
 def document_to_vector(tokens, model, vector_size=100):
     vectors = []
 
@@ -21,7 +41,12 @@ def document_to_vector(tokens, model, vector_size=100):
 
 
 def min_max_normalize(scores):
-    scores = np.array(scores)
+    scores = np.nan_to_num(
+        np.array(scores, dtype=float),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0
+    )
 
     min_score = scores.min()
     max_score = scores.max()
@@ -32,6 +57,8 @@ def min_max_normalize(scores):
     return (scores - min_score) / (max_score - min_score)
 
 
+# TF-IDF
+# هنا نحقق تمثيل الوثائق والاستعلام باستخدام المتجهات الإحصائية.
 def search_tfidf(query, docs_df, vectorizer, tfidf_matrix, top_k=10):
     processed_query = preprocess_stemming(query)
     query_vector = vectorizer.transform([processed_query])
@@ -50,6 +77,8 @@ def search_tfidf(query, docs_df, vectorizer, tfidf_matrix, top_k=10):
     return dataframe_to_response(ranked_results, "tfidf_score")
 
 
+# Word2Vec
+# هنا نحقق تمثيل الوثائق والاستعلام باستخدام المتجهات الدلالية.
 def search_word2vec(query, docs_df, word2vec_model, word2vec_matrix, top_k=10):
     processed_query = preprocess_stemming(query)
     query_tokens = processed_query.split()
@@ -74,12 +103,14 @@ def search_word2vec(query, docs_df, word2vec_model, word2vec_matrix, top_k=10):
     return dataframe_to_response(ranked_results, "word2vec_score")
 
 
+# BM25
+# هنا نحقق النموذج الاحتمالي مع دعم تغيير المعاملات من الواجهة.
 def search_bm25(query, docs_df, tokenized_corpus, top_k=10, k1=1.5, b=0.75):
     processed_query = preprocess_stemming(query)
     tokenized_query = processed_query.split()
 
-    bm25_model = BM25Okapi(
-        tokenized_corpus,
+    bm25_model = get_bm25_model(
+        tokenized_corpus=tokenized_corpus,
         k1=k1,
         b=b
     )
@@ -87,6 +118,7 @@ def search_bm25(query, docs_df, tokenized_corpus, top_k=10, k1=1.5, b=0.75):
     scores = np.array(
         bm25_model.get_scores(tokenized_query)
     )
+    scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
 
     results = docs_df[["doc_id", "text"]].copy()
     results["bm25_score"] = scores
@@ -100,6 +132,8 @@ def search_bm25(query, docs_df, tokenized_corpus, top_k=10, k1=1.5, b=0.75):
     return dataframe_to_response(ranked_results, "bm25_score")
 
 
+# Serial Hybrid Representation
+# هنا نطبق الهجين التسلسلي باختيار مرشحين أولاً ثم إعادة ترتيبهم دلالياً.
 def serial_hybrid_search(
     query,
     docs_df,
@@ -114,14 +148,20 @@ def serial_hybrid_search(
     processed_query = preprocess_stemming(query)
     tokenized_query = processed_query.split()
 
-    bm25_model = BM25Okapi(
-        tokenized_corpus,
+    bm25_model = get_bm25_model(
+        tokenized_corpus=tokenized_corpus,
         k1=k1,
         b=b
     )
 
     bm25_scores = np.array(
         bm25_model.get_scores(tokenized_query)
+    )
+    bm25_scores = np.nan_to_num(
+        bm25_scores,
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0
     )
 
     candidate_k = min(candidate_k, len(docs_df))
@@ -160,6 +200,8 @@ def serial_hybrid_search(
     return response
 
 
+# Parallel Hybrid Representation
+# هنا نطبق الهجين المتوازي بدمج درجة النموذج النصي مع الدرجة الدلالية.
 def parallel_hybrid_search(
     query,
     docs_df,
@@ -174,14 +216,20 @@ def parallel_hybrid_search(
     processed_query = preprocess_stemming(query)
     tokenized_query = processed_query.split()
 
-    bm25_model = BM25Okapi(
-        tokenized_corpus,
+    bm25_model = get_bm25_model(
+        tokenized_corpus=tokenized_corpus,
         k1=k1,
         b=b
     )
 
     bm25_scores = np.array(
         bm25_model.get_scores(tokenized_query)
+    )
+    bm25_scores = np.nan_to_num(
+        bm25_scores,
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0
     )
 
     query_vector = document_to_vector(
@@ -212,6 +260,8 @@ def parallel_hybrid_search(
     return dataframe_to_response(ranked_results, "final_hybrid_score")
 
 
+# Retrieval Service
+# هنا نوجه البحث إلى طريقة التمثيل المختارة مع نفس معاملات المستخدم.
 def run_search(
     query,
     dataset,
@@ -223,21 +273,19 @@ def run_search(
     alpha=0.6
 ):
     if dataset == "dataset1":
-        docs_df = loaded_data["work1_df"]
-        vectorizer = loaded_data["tfidf_vectorizer_1"]
-        tfidf_matrix = loaded_data["tfidf_matrix_1"]
-        word2vec_model = loaded_data["word2vec_model_1"]
-        word2vec_matrix = loaded_data["word2vec_matrix_1"]
-        tokenized_corpus = loaded_data["tokenized_corpus_1"]
-        inverted_index = loaded_data["inverted_index_1"]
+        suffix = "1"
+    elif dataset == "dataset2":
+        suffix = "2"
     else:
-        docs_df = loaded_data["work2_df"]
-        vectorizer = loaded_data["tfidf_vectorizer_2"]
-        tfidf_matrix = loaded_data["tfidf_matrix_2"]
-        word2vec_model = loaded_data["word2vec_model_2"]
-        word2vec_matrix = loaded_data["word2vec_matrix_2"]
-        tokenized_corpus = loaded_data["tokenized_corpus_2"]
-        inverted_index = loaded_data["inverted_index_2"]
+        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
+
+    docs_df = loaded_data[f"work{suffix}_df"]
+    vectorizer = loaded_data[f"tfidf_vectorizer_{suffix}"]
+    tfidf_matrix = loaded_data[f"tfidf_matrix_{suffix}"]
+    word2vec_model = loaded_data[f"word2vec_model_{suffix}"]
+    word2vec_matrix = loaded_data[f"word2vec_matrix_{suffix}"]
+    tokenized_corpus = loaded_data[f"tokenized_corpus_{suffix}"]
+    inverted_index = loaded_data[f"inverted_index_{suffix}"]
 
     if method == "tfidf":
         return search_tfidf(query, docs_df, vectorizer, tfidf_matrix, top_k)
