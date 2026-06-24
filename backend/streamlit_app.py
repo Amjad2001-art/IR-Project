@@ -386,30 +386,31 @@ evaluation_clicked = st.button(
     width="stretch",
 )
 
+current_search_payload = {
+    "query": query,
+    "dataset": dataset,
+    "method": method,
+    "top_k": int(top_k),
+    "k1": float(k1),
+    "b": float(b),
+    "alpha": float(alpha),
+    "use_refinement": True,
+    "use_topic_detection": use_topic_detection,
+    "history": st.session_state.search_history,
+}
+
 if search_clicked:
     # Query Matching And Ranking
     # هنا نرسل الاستعلام والمعاملات للباك ليعيد النتائج المرتبة.
-    payload = {
-        "query": query,
-        "dataset": dataset,
-        "method": method,
-        "top_k": int(top_k),
-        "k1": float(k1),
-        "b": float(b),
-        "alpha": float(alpha),
-        "use_refinement": True,
-        "use_topic_detection": use_topic_detection,
-        "history": st.session_state.search_history,
-    }
-
     try:
         with st.spinner("Searching through FastAPI services..."):
-            response = run_ui_search(payload)
+            response = run_ui_search(current_search_payload)
     except requests.RequestException as error:
         st.error(f"Search request failed: {error}")
     else:
         update_history(query)
         st.session_state.last_response = response
+        st.session_state.last_search_payload = current_search_payload
 
 if evaluation_clicked:
     # Evaluation
@@ -437,9 +438,12 @@ if evaluation_clicked:
 
 
 response = st.session_state.get("last_response")
+last_search_payload = st.session_state.get("last_search_payload")
 
 if not response:
     st.info("Enter a query and press Search to display ranked results.")
+elif last_search_payload != current_search_payload:
+    st.info("Search settings changed. Press Search to run the query with the new values.")
 else:
     st.subheader("Search Summary")
 

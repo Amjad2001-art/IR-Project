@@ -55,7 +55,7 @@ IR_Search_Engine_Project/
 | Inverted Index | Built and cached for term matching. |
 | Serial Hybrid | BM25 candidate retrieval followed by Word2Vec reranking. |
 | Parallel Hybrid | Normalized BM25 and Word2Vec score fusion with `alpha`. |
-| Query Refinement | Spelling correction, synonym expansion, history-based suggestion, and live prefix suggestions. |
+| Query Refinement | Core feature applied automatically to every search: spelling correction, synonym expansion, history-based suggestion, IR-style query similarity, and live prefix suggestions. |
 | Topic Detection | Additional feature that detects topic terms from retrieved results and reranks candidates. |
 | Evaluation | MAP, Recall, Precision@10, and nDCG before and after Topic Detection. |
 | SOA | Code is split into independent services under `backend/services`. |
@@ -174,6 +174,7 @@ OK
 ## Run Topic Evaluation
 
 This evaluates all methods before and after Topic Detection.
+Query Refinement is applied in both cases, so the measured difference is the effect of Topic Detection only.
 
 ```bash
 cd backend
@@ -216,7 +217,7 @@ report_assets/topic_evaluation_results.json
   "k1": 1.5,
   "b": 0.75,
   "alpha": 0.6,
-  "use_refinement": false,
+  "use_refinement": true,
   "use_topic_detection": false,
   "history": []
 }
@@ -226,7 +227,8 @@ report_assets/topic_evaluation_results.json
 
 - The React frontend was removed. The project now uses the Python Streamlit interface.
 - The additional feature kept in the project is Topic Detection only.
-- Query Refinement is treated as a core requirement, not as an additional feature.
+- Query Refinement is treated as a core requirement, not as an additional feature, and it is applied automatically before search and before/after Topic Detection evaluation.
+- Changing search parameters in the Streamlit interface does not run a new search until the `Search` button is pressed.
 - Large generated files are excluded from GitHub and can be rebuilt using the dataset build commands.
 
 ## Author
