@@ -15,7 +15,6 @@ Generated datasets, indexes, matrices, models, and report assets are not committ
 IR_Search_Engine_Project/
 |-- backend/
 |   |-- main.py
-|   |-- streamlit_app.py
 |   |-- requirements.txt
 |   |-- build_full_wikir_dataset.py
 |   |-- build_full_quora_dataset.py
@@ -38,6 +37,8 @@ IR_Search_Engine_Project/
 |   |-- tests/
 |       |-- test_core_services.py
 |       |-- test_query_refinement.py
+|-- frontend/
+|   |-- streamlit_app.py
 |-- notebook/
 |-- .gitignore
 |-- README.md
@@ -148,8 +149,7 @@ http://127.0.0.1:8000/docs
 Open a second terminal:
 
 ```bash
-cd backend
-python -m streamlit run streamlit_app.py
+python -m streamlit run frontend/streamlit_app.py
 ```
 
 Streamlit usually opens at:

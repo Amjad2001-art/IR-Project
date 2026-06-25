@@ -13,7 +13,8 @@ except ImportError:
 
 
 API_URL = os.getenv("IR_API_URL", "http://127.0.0.1:8000")
-HISTORY_PATH = Path(__file__).resolve().parent / "saved_files" / "persistent_search_history.json"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+HISTORY_PATH = PROJECT_ROOT / "backend" / "saved_files" / "persistent_search_history.json"
 
 DATASET_LABELS = {
 # Dataset Selection
