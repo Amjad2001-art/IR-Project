@@ -20,7 +20,6 @@ DATASET_LABELS = {
 # Dataset Selection
 # هنا تظهر أسماء الداتا سيت التي يختارها المستخدم من الواجهة.
     "dataset1": "WikIR - Complete Test Dataset",
-    "dataset2": "Quora - Complete Dataset",
 }
 
 
@@ -225,7 +224,7 @@ st.markdown(
     <div class="app-hero">
       <h1>Information Retrieval Search Engine</h1>
       <p>
-        Python interface for the complete WikIR and Quora collections with TF-IDF, Word2Vec,
+        Python interface for the complete WikIR collection with TF-IDF, Word2Vec,
         BM25, inverted index, serial hybrid, parallel hybrid, query refinement,
         and topic detection.
       </p>
@@ -249,7 +248,7 @@ with st.sidebar:
         "Dataset",
         options=list(available_datasets.keys()),
         format_func=lambda item: DATASET_LABELS[item],
-        index=1 if "dataset2" in available_datasets else 0,
+        index=0,
     )
 
     method = st.selectbox(
@@ -330,11 +329,7 @@ metric_cols[1].metric("Loaded Documents", f"{doc_count:,}")
 metric_cols[2].metric("Method", METHODS[method])
 metric_cols[3].metric("History Items", len(st.session_state.search_history))
 
-default_query = (
-    "information retrieval"
-    if dataset == "dataset1"
-    else "learn programming"
-)
+default_query = "information retrieval"
 
 if not st.session_state.query_input:
     st.session_state.query_input = default_query

@@ -182,16 +182,13 @@ def ndcg_at_k(retrieved_doc_ids, relevant_doc_ids, k=10):
 
 def load_evaluation_files(dataset, save_dir="saved_files"):
     # Test Queries And Qrels
-    # هنا نقرأ استعلامات الاختبار وأحكام الصلة الرسمية الخاصة بكل داتا سيت.
+    # هنا نقرأ استعلامات الاختبار وأحكام الصلة الرسمية الخاصة ب داتا سيت.
     # نختار أسماء ملفات التقييم حسب الداتا سيت المطلوبة.
-    if dataset == "dataset1":
-        queries_file = "queries_dataset1.csv"
-        qrels_file = "qrels_dataset1.csv"
-    elif dataset == "dataset2":
-        queries_file = "queries_dataset2.csv"
-        qrels_file = "qrels_dataset2.csv"
-    else:
-        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
+    if dataset != "dataset1":
+        raise ValueError("dataset must be dataset1 (WikIR)")
+
+    queries_file = "queries_dataset1.csv"
+    qrels_file = "qrels_dataset1.csv"
 
     # نبني المسار الكامل لملفات الاستعلامات وأحكام الصلة.
     queries_path = os.path.join(save_dir, queries_file)
@@ -228,12 +225,10 @@ def load_evaluation_files(dataset, save_dir="saved_files"):
 
 
 def load_indexed_documents(dataset, save_dir="saved_files"):
-    if dataset == "dataset1":
-        docs_file = "work_dataset1.csv"
-    elif dataset == "dataset2":
-        docs_file = "work_dataset2.csv"
-    else:
-        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
+    if dataset != "dataset1":
+        raise ValueError("dataset must be dataset1 (WikIR)")
+
+    docs_file = "work_dataset1.csv"
 
     docs_path = os.path.join(save_dir, docs_file)
 
@@ -270,6 +265,9 @@ def get_valid_queries(queries_df, filtered_qrels_df, max_queries):
     valid_queries_df = queries_df[
         queries_df["query_id"].isin(valid_query_ids)
     ].copy()
+
+    if max_queries is None or int(max_queries) <= 0:
+        return valid_queries_df
 
     return valid_queries_df.head(max_queries)
 

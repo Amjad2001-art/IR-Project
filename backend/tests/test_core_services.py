@@ -239,7 +239,7 @@ class CoreServiceTests(unittest.TestCase):
         )
 
         result = evaluate_single_method_with_topic_cost(
-            dataset="dataset2",
+            dataset="dataset1",
             method="tfidf",
             loaded_data={},
             queries_df=queries,

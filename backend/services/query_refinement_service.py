@@ -189,7 +189,6 @@ CANONICAL_WORDS = sorted(
 # هذه الملفات تستخدم للاقتراحات والتصحيح، وليس لتغيير ملفات التقييم المخزنة.
 DATASET_QUERY_FILES = {
     "dataset1": "queries_dataset1.csv",
-    "dataset2": "queries_dataset2.csv",
 }
 
 

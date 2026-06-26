@@ -89,19 +89,13 @@ class QueryRefinementTests(unittest.TestCase):
             "chief justice united states",
         )
 
-    def test_dataset_catalogs_are_kept_separate(self):
+    def test_wikir_catalog_is_used_for_suggestions(self):
         wikir_suggestions = get_query_suggestions(
             "hal",
             dataset="dataset1",
             top_k=12,
         )
-        quora_suggestions = get_query_suggestions(
-            "hal",
-            dataset="dataset2",
-            top_k=12,
-        )
         self.assertIn("halakha", wikir_suggestions)
-        self.assertNotIn("halakha", quora_suggestions)
 
 
 if __name__ == "__main__":

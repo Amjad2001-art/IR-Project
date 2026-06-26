@@ -17,13 +17,6 @@ DATASETS = {
         "expected_queries": 100,
         "expected_qrels": 4435,
     },
-    "dataset2": {
-        "name": "beir/quora/test",
-        "suffix": "2",
-        "expected_documents": 522931,
-        "expected_queries": 10000,
-        "expected_qrels": 15675,
-    },
 }
 
 
@@ -210,7 +203,7 @@ def main():
     print("=" * 72)
     if not checks or not all(checks):
         raise SystemExit("Verification failed.")
-    print("Both complete datasets and all cached artifacts passed.")
+    print("The complete WikIR dataset and all cached artifacts passed.")
 
 
 if __name__ == "__main__":

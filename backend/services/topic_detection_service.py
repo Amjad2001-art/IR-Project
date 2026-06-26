@@ -176,12 +176,10 @@ def load_documents_for_clustering(dataset, save_dir="saved_files", max_docs=1000
     # Document Clustering
     # نجهز الوثائق التي ستستخدم في التجميع الموضوعي.
     # التجميع يساعد في شرح الموضوعات والمخططات، ولا يغير نتائج البحث المباشر.
-    if dataset == "dataset1":
-        docs_file = "work_dataset1.csv"
-    elif dataset == "dataset2":
-        docs_file = "work_dataset2.csv"
-    else:
-        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
+    if dataset != "dataset1":
+        raise ValueError("dataset must be dataset1 (WikIR)")
+
+    docs_file = "work_dataset1.csv"
 
     # نبني مسار ملف الوثائق داخل مجلد الكاش.
     docs_path = os.path.join(save_dir, docs_file)

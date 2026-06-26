@@ -26,7 +26,6 @@ Thumbs.db
 
 # Backup generated artifacts
 backend/saved_files/backup_dataset1_before_smart_subset/
-backend/saved_files/backup_dataset2_before_smart_subset/
 backend/saved_files/*
 !backend/saved_files/
 !backend/saved_files/.gitkeep

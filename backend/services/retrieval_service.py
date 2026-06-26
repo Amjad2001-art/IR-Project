@@ -358,12 +358,10 @@ def run_search(
     alpha=0.6
 ):
     # نحدد لاحقة الملفات حسب الداتا سيت المختارة.
-    if dataset == "dataset1":
-        suffix = "1"
-    elif dataset == "dataset2":
-        suffix = "2"
-    else:
-        raise ValueError("dataset must be dataset1 (WikIR) or dataset2 (Quora)")
+    if dataset != "dataset1":
+        raise ValueError("dataset must be dataset1 (WikIR)")
+
+    suffix = "1"
 
     # نقرأ وثائق الداتا المختارة من الذاكرة.
     docs_df = loaded_data[f"work{suffix}_df"]

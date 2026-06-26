@@ -3,8 +3,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-BACKEND = ROOT
-sys.path.insert(0, str(BACKEND))
+sys.path.insert(0, str(ROOT))
 
 from services.evaluation_service import evaluate_all_methods_with_topic_detection
 from services.model_loader_service import ModelLoaderService
@@ -24,11 +23,10 @@ METHODS = [
 
 def main():
     OUT_PATH.parent.mkdir(exist_ok=True)
-    save_dir = str(BACKEND / "saved_files")
+    save_dir = str(ROOT / "saved_files")
     loader = ModelLoaderService(save_dir=save_dir)
     loaded_data = loader.load_all()
 
-    print("Running topic evaluation for dataset1...")
     results = {
         "dataset1": evaluate_all_methods_with_topic_detection(
             dataset="dataset1",

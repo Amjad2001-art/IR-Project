@@ -2,10 +2,9 @@
 
 A Python Information Retrieval system built with a service-oriented backend and a Streamlit interface.
 
-The system works on two complete test collections:
+The system works on one complete test collection:
 
 - `wikir/en1k/test`
-- `beir/quora/test`
 
 Generated datasets, indexes, matrices, models, and report assets are not committed to GitHub because they are large and can be rebuilt with the commands below.
 
@@ -17,10 +16,8 @@ IR_Search_Engine_Project/
 |   |-- main.py
 |   |-- requirements.txt
 |   |-- build_full_wikir_dataset.py
-|   |-- build_full_quora_dataset.py
 |   |-- prepare_evaluation_files.py
 |   |-- run_topic_evaluation_for_report.py
-|   |-- benchmark_topic_feature_cost.py
 |   |-- verify_project_requirements.py
 |   |-- saved_files/
 |   |   |-- .gitkeep
@@ -48,7 +45,7 @@ IR_Search_Engine_Project/
 
 | Requirement | Implementation |
 | --- | --- |
-| Complete datasets | Full `wikir/en1k/test` and full `beir/quora/test` are read from the official sources. |
+| Complete dataset | Full `wikir/en1k/test` is read from the official source. |
 | Data preprocessing | Normalization, stop-word removal, and stemming. |
 | TF-IDF | Implemented with `TfidfVectorizer` and cosine similarity. |
 | Word2Vec | Trained per dataset and used for semantic retrieval. |
@@ -66,7 +63,6 @@ IR_Search_Engine_Project/
 | ID | Dataset | Documents | Queries | Qrels |
 | --- | --- | ---: | ---: | ---: |
 | `dataset1` | `wikir/en1k/test` | 369,721 | 100 | 4,435 |
-| `dataset2` | `beir/quora/test` | 522,931 | 10,000 | 15,675 |
 
 Qrels are used for evaluation only. They are not used to select or reduce documents.
 
@@ -100,7 +96,6 @@ Run these commands once after cloning the repository.
 ```bash
 cd backend
 python build_full_wikir_dataset.py
-python build_full_quora_dataset.py
 python prepare_evaluation_files.py
 python verify_project_requirements.py
 ```
@@ -184,7 +179,7 @@ python run_topic_evaluation_for_report.py
 The output is written to:
 
 ```text
-report_assets/topic_evaluation_results.json
+report_assets/topic_evaluation_results_dataset1_full.json
 ```
 
 `report_assets/` is ignored by Git because it contains generated report data and charts.
@@ -210,8 +205,8 @@ report_assets/topic_evaluation_results.json
 
 ```json
 {
-  "query": "learn programming",
-  "dataset": "dataset2",
+  "query": "information retrieval",
+  "dataset": "dataset1",
   "method": "bm25",
   "top_k": 10,
   "k1": 1.5,

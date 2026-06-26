@@ -12,7 +12,6 @@ WIKIR_ARCHIVE = os.path.expanduser(
 
 DATASETS = {
     "dataset1": "wikir/en1k/test",
-    "dataset2": "beir/quora/test"
 }
 
 

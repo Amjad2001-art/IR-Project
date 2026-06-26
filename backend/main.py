@@ -51,7 +51,7 @@ class QueryRequest(BaseModel):
     # نص الاستعلام الذي يرسله المستخدم.
     query: str
     # الداتا سيت الافتراضية هي الداتا الثانية.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
 
 
 class SuggestRequest(BaseModel):
@@ -60,14 +60,14 @@ class SuggestRequest(BaseModel):
     # سجل البحث يساعد في اقتراح استعلامات قريبة من سياق المستخدم.
     history: list[str] = []
     # نستخدم الداتا المختارة حتى تكون الاقتراحات مناسبة لمفرداتها.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
 
 
 class SearchRequest(BaseModel):
     # الاستعلام الأصلي القادم من الواجهة.
     query: str
     # اختيار الداتا الأولى أو الثانية.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # طريقة الاسترجاع المطلوبة.
     method: str = "bm25"
     # عدد النتائج النهائية التي يريدها المستخدم.
@@ -90,7 +90,7 @@ class EvaluateRequest(BaseModel):
     # استعلام واحد نريد تقييم نتائجه عند وجود وثائق صلة.
     query: str
     # الداتا سيت التي سيتم التقييم عليها.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # طريقة الاسترجاع التي سيتم تقييمها.
     method: str = "bm25"
     # عدد النتائج الداخلة في حساب المقاييس.
@@ -109,7 +109,7 @@ class EvaluateRequest(BaseModel):
 
 class SystemEvaluationRequest(BaseModel):
     # الداتا التي سيجرى عليها تقييم جميع الطرق.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # الطرق الرسمية المطلوب تقييمها في المشروع.
     methods: list[str] = [
         "tfidf",
@@ -131,7 +131,7 @@ class SystemEvaluationRequest(BaseModel):
 
 class TopicEvaluationRequest(BaseModel):
     # الداتا التي سيتم عليها تقييم قبل وبعد الميزة الإضافية.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # جميع طرق الاسترجاع التي نقارنها قبل وبعد كشف الموضوع.
     methods: list[str] = [
         "tfidf",
@@ -155,7 +155,7 @@ class TopicDetectionRequest(BaseModel):
     # استعلام واحد لاختبار كشف الموضوع على نتائجه.
     query: str
     # الداتا التي يتم البحث فيها.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # طريقة الاسترجاع المستخدمة لجلب النتائج الأولية.
     method: str = "bm25"
     # عدد النتائج المراد تحليل موضوعها.
@@ -168,7 +168,7 @@ class TopicDetectionRequest(BaseModel):
 
 class DocumentClusteringRequest(BaseModel):
     # الداتا التي سيتم تجميع وثائقها موضوعياً.
-    dataset: str = "dataset2"
+    dataset: str = "dataset1"
     # عدد التجمعات الموضوعية المطلوبة.
     n_clusters: int = 5
     # حد أعلى للوثائق المستخدمة حتى تبقى العملية عملية وسريعة.
@@ -206,11 +206,6 @@ def datasets():
                 "id": "dataset1",
                 "name": "wikir/en1k/test",
                 "document_count": len(loaded_data["work1_df"])
-            },
-            {
-                "id": "dataset2",
-                "name": "beir/quora/test",
-                "document_count": len(loaded_data["work2_df"])
             }
         ]
     }
