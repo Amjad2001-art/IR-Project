@@ -1,0 +1,10 @@
+Dataset 1: WikIR
+
+GitHub Dataset Repository:
+https://github.com/Amjad2001-art/First_Dataset.git
+
+Official Source:
+https://ir-datasets.com/wikir.html#wikir/en1k/test
+
+Project Loader:
+ir_datasets.load("wikir/en1k/test")
