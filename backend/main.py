@@ -50,7 +50,7 @@ loaded_data = loader.load_all()
 class QueryRequest(BaseModel):
     # نص الاستعلام الذي يرسله المستخدم.
     query: str
-    # الداتا سيت الافتراضية هي الداتا الثانية.
+
     dataset: str = "dataset1"
 
 
@@ -66,7 +66,7 @@ class SuggestRequest(BaseModel):
 class SearchRequest(BaseModel):
     # الاستعلام الأصلي القادم من الواجهة.
     query: str
-    # اختيار الداتا الأولى أو الثانية.
+    
     dataset: str = "dataset1"
     # طريقة الاسترجاع المطلوبة.
     method: str = "bm25"
