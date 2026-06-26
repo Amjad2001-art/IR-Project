@@ -194,15 +194,6 @@ def run_ui_search(payload):
     return response.json()
 
 
-def run_topic_evaluation(payload):
-    response = requests.post(
-        f"{API_URL}/evaluate-topic-detection",
-        json=payload,
-        timeout=600,
-    )
-    response.raise_for_status()
-    return response.json()
-
 
 if "search_history" not in st.session_state:
     st.session_state.search_history = load_persistent_history()
@@ -303,22 +294,6 @@ with st.sidebar:
         save_persistent_history([])
         st.rerun()
 
-    st.divider()
-    st.subheader("Evaluation")
-
-    evaluation_methods = st.multiselect(
-        "Methods to Evaluate",
-        options=list(METHODS.keys()),
-        default=list(METHODS.keys()),
-        format_func=lambda item: METHODS[item],
-    )
-    evaluation_queries = st.slider(
-        "Evaluation Queries",
-        min_value=1,
-        max_value=40,
-        value=10,
-    )
-
 
 dataset_info = available_datasets[dataset]
 doc_count = int(dataset_info.get("document_count", 0))
@@ -375,12 +350,6 @@ if suggestion_query:
                 st.rerun()
 
 search_clicked = st.button("Search", type="primary", width="stretch")
-evaluation_clicked = st.button(
-    # Before And After Evaluation
-    # هنا نشغل تقييم أثر كشف الموضوع قبل وبعد من الواجهة.
-    "Run Before/After Topic Evaluation",
-    width="stretch",
-)
 
 current_search_payload = {
     "query": query,
@@ -407,30 +376,6 @@ if search_clicked:
         update_history(query)
         st.session_state.last_response = response
         st.session_state.last_search_payload = current_search_payload
-
-if evaluation_clicked:
-    # Evaluation
-    # هنا نرسل طلب التقييم الرسمي باستخدام الاستعلامات وأحكام الصلة.
-    if not evaluation_methods:
-        st.warning("Select at least one retrieval method for evaluation.")
-    else:
-        evaluation_payload = {
-            "dataset": dataset,
-            "methods": evaluation_methods,
-            "top_k": 10,
-            "max_queries": int(evaluation_queries),
-            "k1": float(k1),
-            "b": float(b),
-            "alpha": float(alpha),
-        }
-
-        try:
-            with st.spinner("Running fair before/after evaluation..."):
-                evaluation_response = run_topic_evaluation(evaluation_payload)
-        except requests.RequestException as error:
-            st.error(f"Evaluation request failed: {error}")
-        else:
-            st.session_state.last_evaluation = evaluation_response
 
 
 response = st.session_state.get("last_response")
@@ -489,138 +434,3 @@ else:
                 """,
                 unsafe_allow_html=True,
             )
-
-
-evaluation_response = st.session_state.get("last_evaluation")
-
-if evaluation_response:
-    st.divider()
-    st.subheader("Topic Detection Evaluation")
-    # Evaluation Report
-    # هنا نعرض جداول قبل وبعد وفروق المقاييس والزمن في الواجهة.
-
-    pool_cols = st.columns(4)
-    pool_cols[0].metric(
-        "Evaluated Queries",
-        evaluation_response.get("max_queries", 0),
-    )
-    pool_cols[1].metric(
-        "Final Top K",
-        evaluation_response.get("top_k", 0),
-    )
-    pool_cols[2].metric(
-        "Candidate Pool Before",
-        evaluation_response.get("baseline_candidate_pool_size", 0),
-    )
-    pool_cols[3].metric(
-        "Candidate Pool After",
-        evaluation_response.get("topic_candidate_pool_size", 0),
-    )
-
-    before_frame = pd.DataFrame(
-        evaluation_response.get("before_additional_feature", [])
-    )
-    after_frame = pd.DataFrame(
-        evaluation_response.get("after_topic_detection", [])
-    )
-    difference_frame = pd.DataFrame(
-        evaluation_response.get("metric_differences", [])
-    )
-
-    st.caption(
-        "Timing is measured after warm-up. Retrieval uses the median of "
-        "3 runs per query, and Topic Detection cost uses the median of "
-        "10 isolated runs on the same candidate results."
-    )
-
-    st.markdown("#### Before Topic Detection")
-    if not before_frame.empty:
-        before_frame["Retrieval Time (ms)"] = (
-            before_frame["average_warmed_retrieval_time_seconds"] * 1000
-        ).round(3)
-        st.dataframe(
-            before_frame[
-                [
-                    "method",
-                    "MAP",
-                    "Recall",
-                    "Precision@10",
-                    "nDCG",
-                    "Retrieval Time (ms)",
-                ]
-            ],
-            width="stretch",
-            hide_index=True,
-        )
-
-    st.markdown("#### After Topic Detection")
-    if not after_frame.empty:
-        after_frame["Feature Cost (ms)"] = (
-            after_frame["average_topic_feature_cost_seconds"] * 1000
-        ).round(3)
-        after_frame["Estimated Total (ms)"] = (
-            after_frame["average_estimated_total_time_seconds"] * 1000
-        ).round(3)
-        after_frame["Overhead (%)"] = (
-            after_frame["feature_overhead_percent"]
-        ).round(2)
-        st.dataframe(
-            after_frame[
-                [
-                    "method",
-                    "MAP",
-                    "Recall",
-                    "Precision@10",
-                    "nDCG",
-                    "Feature Cost (ms)",
-                    "Estimated Total (ms)",
-                    "Overhead (%)",
-                ]
-            ],
-            width="stretch",
-            hide_index=True,
-        )
-
-    st.markdown("#### Metric Differences")
-    if not difference_frame.empty:
-        difference_columns = [
-            "method",
-            "MAP_difference",
-            "Recall_difference",
-            "Precision@10_difference",
-            "nDCG_difference",
-            "topic_feature_cost_milliseconds",
-            "feature_overhead_percent",
-        ]
-        difference_frame = difference_frame.rename(
-            columns={
-                "topic_feature_cost_milliseconds": "Feature Cost (ms)",
-                "feature_overhead_percent": "Overhead (%)",
-            }
-        )
-        difference_columns = [
-            "method",
-            "MAP_difference",
-            "Recall_difference",
-            "Precision@10_difference",
-            "nDCG_difference",
-            "Feature Cost (ms)",
-            "Overhead (%)",
-        ]
-        difference_frame["Feature Cost (ms)"] = (
-            difference_frame["Feature Cost (ms)"].round(3)
-        )
-        difference_frame["Overhead (%)"] = (
-            difference_frame["Overhead (%)"].round(2)
-        )
-        st.dataframe(
-            difference_frame[
-                [
-                    column
-                    for column in difference_columns
-                    if column in difference_frame.columns
-                ]
-            ],
-            width="stretch",
-            hide_index=True,
-        )
